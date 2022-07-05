@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"syscall"
 )
 
-func SendCtrlC(pid int) error {
+func SendCtrlC(p *os.Process) error {
 	d, e := loadKernel32()
 	if e != nil {
 		return e
@@ -15,7 +16,7 @@ func SendCtrlC(pid int) error {
 		return e
 	}
 
-	if e = generateConsoleCtrlEvent(d, pid); e != nil {
+	if e = generateConsoleCtrlEvent(d, p.Pid); e != nil {
 		return e
 	}
 

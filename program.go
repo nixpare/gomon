@@ -131,12 +131,15 @@ func (p *Program) Stop() error {
 		wg.Done()
 	}()
 
-	SendCtrlC(p.exec.Process.Pid)
+	err := SendCtrlC(p.exec.Process)
+	if err != nil {
+		panic(err)
+	}
 	wg.Wait()
 
-	err := RestoreConsoleCtrlHandler()
+	err = RestoreConsoleCtrlHandler()
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	return nil
