@@ -12,10 +12,11 @@ type Scheduler struct {
 func NewScheduler() *Scheduler {
 	s := &Scheduler {
 		triggerC: make(chan struct{}, 1),
-		triggerTime: time.Now(),
 		lastChange: time.Now(),
 		ticker: *time.NewTicker(time.Millisecond * 500),
 	}
+
+	s.triggerTime = s.lastChange
 
 	go func() {
 		for range s.ticker.C {

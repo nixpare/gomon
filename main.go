@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -20,7 +22,12 @@ func main() {
 		dir, _ = os.Getwd()
 	}
 
-	tempExecDir := os.TempDir() + "\\gomon"
+	tempExecDir := strings.TrimRight(os.TempDir(), "/\\")
+	if runtime.GOOS == "windows" {
+		tempExecDir += "\\gomon"
+	} else {
+		tempExecDir += "/gomon"
+	}
 
 	info, err := os.Stat(tempExecDir)
 	if err != nil {
@@ -28,17 +35,22 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
+	} else {
+		if !info.IsDir() {
+			log.Fatalf("cannot use directory %s because its already a file\n", tempExecDir)
+		}
 	}
 
-	if !info.IsDir() {
-		log.Fatalf("cannot use directory %s because its already a file\n", tempExecDir)
+	tempExecName := "a-*"
+	if runtime.GOOS == "windows" {
+		tempExecName += ".exe"
 	}
 
-	tempExecFile, err := os.CreateTemp(tempExecDir, "a-*.exe")
+	tempExecFile, err := os.CreateTemp(tempExecDir, tempExecName)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	tempExecName := tempExecFile.Name()
+	tempExecName = tempExecFile.Name()
 	tempExecFile.Close()
 
 	scheduler := NewScheduler()
