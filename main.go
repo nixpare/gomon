@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	fmt.Println("GoMon started")
+	fmt.Println(BlueString("GoMon started"))
 
 	var dir string
 	if len(os.Args) > 1 {
@@ -33,11 +33,11 @@ func main() {
 	if err != nil {
 		err := os.Mkdir(tempExecDir, 0777)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalln(PrintError(err.Error()))
 		}
 	} else {
 		if !info.IsDir() {
-			log.Fatalf("cannot use directory %s because its already a file\n", tempExecDir)
+			log.Fatalln(RedString(fmt.Sprintf("cannot use directory %s because its already a file", tempExecDir)))
 		}
 	}
 
@@ -48,7 +48,7 @@ func main() {
 
 	tempExecFile, err := os.CreateTemp(tempExecDir, tempExecName)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln(PrintError(err.Error()))
 	}
 	tempExecName = tempExecFile.Name()
 	tempExecFile.Close()
@@ -79,40 +79,40 @@ func main() {
 
 	<-exitC
 	wg.Wait()
-	fmt.Println("GoMon terminated")
+	fmt.Println(BlueString("\nGoMon terminated"))
 
 	os.Remove(tempExecName)
 }
 
 func goRunRoutine(execName, dir string, scheduler *Scheduler, waitForRecompile *bool) {
 	if *waitForRecompile {
-		fmt.Println("Waiting for change before recompiling ...")
+		fmt.Println(YellowString("\n  •  Waiting for change before recompiling ...\n"))
 		scheduler.WaitForChange()
 		*waitForRecompile = false
 	}
 
-	fmt.Println("Building executable ...")
+	fmt.Println(CyanString("\n  •  Building executable ..."))
 	p, err := NewProgram(dir, true, "go", "build", "-o", execName)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(PrintError(err.Error()))
 		*waitForRecompile = true
 		return
 	}
 
 	err = p.Run()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(PrintError(err.Error()))
 		*waitForRecompile = true
 		return
 	}
 
-	fmt.Printf("\nBuild operation terminated with status code %d\n", p.lastExitCode)
+	fmt.Println(PrintExitCode(p.lastExitCode))
 	if p.lastExitCode != 0 {
 		*waitForRecompile = true
 		return
 	}
 
-	fmt.Println("Running executable ...")
+	fmt.Println(CyanString("\n  •  Running executable ..."))
 
 	var args []string
 	if len(os.Args) > 2 {
@@ -121,7 +121,7 @@ func goRunRoutine(execName, dir string, scheduler *Scheduler, waitForRecompile *
 
 	p, err = NewProgram(dir, true, execName, args...)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln(PrintError(err.Error()))
 	}
 
 	p.Start()
@@ -134,20 +134,20 @@ func goRunRoutine(execName, dir string, scheduler *Scheduler, waitForRecompile *
 
 		err = p.Stop()
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalln(PrintError(err.Error()))
 		}
 		wg.Done()
 	}()
 
 	p.Wait()
 	wg.Wait()
-	fmt.Printf("Executable terminated with status code %d\n", p.lastExitCode)
+	fmt.Println(PrintExitCode(p.lastExitCode))
 }
 
 func checkRoutine(dir string, scheduler *Scheduler) {
 	matches, err := WalkMatch(dir, "*.go")
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln(PrintError(err.Error()))
 	}
 
 	filesInfo := InitFilesInfoMap(matches)
@@ -157,7 +157,7 @@ func checkRoutine(dir string, scheduler *Scheduler) {
 		
 		matches, err := WalkMatch(dir, "*.go")
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalln(PrintError(err.Error()))
 		}
 
 		checkedMap := make(map[string]bool)
