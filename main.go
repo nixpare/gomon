@@ -94,12 +94,16 @@ func goRunRoutine(execName, dir string, scheduler *Scheduler, waitForRecompile *
 	secs := time.Since(startTime).Seconds()
 	if secs > 0 {
 		ratio := float64(nExecs) / secs
-		if ratio > 0.8 {
-			time.Sleep(time.Second)
+		if ratio > 0.5 {
+			time.Sleep(time.Second * 2)
+		} else {
+			startTime = time.Now()
 		}
 	} else {
 		if nExecs > 1 {
 			time.Sleep(time.Second)
+		} else {
+			startTime = time.Now()
 		}
 	}
 

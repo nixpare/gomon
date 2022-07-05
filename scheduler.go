@@ -1,19 +1,22 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 type Scheduler struct {
 	triggerC   chan struct{}
 	triggerTime time.Time
 	lastChange time.Time
 	ticker time.Ticker
+	unusedChan bool
 }
 
 func NewScheduler() *Scheduler {
 	s := &Scheduler {
 		triggerC: make(chan struct{}, 1),
 		lastChange: time.Now(),
-		ticker: *time.NewTicker(time.Millisecond * 500),
+		ticker: *time.NewTicker(time.Millisecond * 100),
 	}
 
 	s.triggerTime = s.lastChange
@@ -24,11 +27,16 @@ func NewScheduler() *Scheduler {
 				continue
 			}
 
-			if time.Since(s.triggerTime) < (time.Millisecond * 1500) {
-				continue
+			if s.triggerTime.Sub(s.lastChange) < (time.Second * 2) {
+				time.Sleep(time.Duration(2 - s.triggerTime.Sub(s.lastChange).Seconds()))
+			}
+
+			if s.unusedChan {
+				<-s.triggerC
 			}
 
 			s.triggerC <- struct{}{}
+			s.unusedChan = true
 		}
 	}()
 
@@ -41,6 +49,8 @@ func (s *Scheduler) TriggerChange() {
 
 func (s *Scheduler) WaitForChange() {
 	<-s.triggerC
+
+	s.unusedChan = false
 	s.lastChange = time.Now()
 	s.triggerTime = s.lastChange
 }
