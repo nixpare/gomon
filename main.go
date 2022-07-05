@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+var (
+	startTime time.Time = time.Now()
+	nExecs int = 0
+)
+
 func main() {
 	fmt.Println(BlueString("GoMon started"))
 
@@ -85,6 +90,19 @@ func main() {
 }
 
 func goRunRoutine(execName, dir string, scheduler *Scheduler, waitForRecompile *bool) {
+	nExecs ++
+	secs := time.Since(startTime).Seconds()
+	if secs > 0 {
+		ratio := float64(nExecs) / secs
+		if ratio > 0.8 {
+			time.Sleep(time.Second)
+		}
+	} else {
+		if nExecs > 1 {
+			time.Sleep(time.Second)
+		}
+	}
+
 	if *waitForRecompile {
 		fmt.Println(YellowString("\n  •  Waiting for change before recompiling ...\n"))
 		scheduler.WaitForChange()
