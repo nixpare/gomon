@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -15,6 +14,7 @@ import (
 var (
 	startTime time.Time = time.Now()
 	nExecs int = 0
+	exiting bool
 )
 
 func main() {
@@ -58,38 +58,29 @@ func main() {
 	tempExecName = tempExecFile.Name()
 	tempExecFile.Close()
 
-	scheduler := NewScheduler()
+	s := NewScheduler()
 
-	go checkRoutine(dir, scheduler)
+	go checkRoutine(dir, s)
 
 	exitC := make(chan os.Signal, 3)
 	signal.Notify(exitC, os.Interrupt, syscall.SIGTERM)
 
-	wg := new(sync.WaitGroup)
-	waitForRecompile := new(bool)
-
-	wg.Add(1)
 	go func() {
-		goRunRoutine(tempExecName, dir, scheduler, waitForRecompile)
-		wg.Done()
-
-		for {
-			time.Sleep(time.Millisecond * 100)
-
-			wg.Add(1)
-			goRunRoutine(tempExecName, dir, scheduler, waitForRecompile)
-			wg.Done()
+		for !exiting {
+			goRunRoutine(tempExecName, dir, s)
 		}
 	}()
 
 	<-exitC
-	wg.Wait()
+	exiting = true
+
+	s.RoutineWG.Wait()
 	fmt.Println(BlueString("\nGoMon terminated"))
 
 	os.Remove(tempExecName)
 }
 
-func goRunRoutine(execName, dir string, scheduler *Scheduler, waitForRecompile *bool) {
+func goRunRoutine(execName, dir string, s *Scheduler) {
 	nExecs ++
 	secs := time.Since(startTime).Seconds()
 	if secs > 0 {
@@ -107,66 +98,28 @@ func goRunRoutine(execName, dir string, scheduler *Scheduler, waitForRecompile *
 		}
 	}
 
-	if *waitForRecompile {
-		fmt.Println(YellowString("\n  •  Waiting for change before recompiling ...\n"))
-		scheduler.WaitForChange()
-		*waitForRecompile = false
+	if s.waitChangesForRecompile {
+		fmt.Println(OrangeString("\n  •  Waiting for change before recompiling ...\n"))
+		s.WaitForChange(nil)
+		s.waitChangesForRecompile = false
 	}
 
-	fmt.Println(CyanString("\n  •  Building executable ..."))
-	p, err := NewProgram(dir, true, "go", "build", "-o", execName)
-	if err != nil {
-		fmt.Println(PrintError(err.Error()))
-		*waitForRecompile = true
+	defer time.Sleep(time.Millisecond * 100)
+
+	s.RoutineWG.Add(1)
+	mustReturn := compileRoutine(dir, execName, s)
+	s.RoutineWG.Done()
+
+	if mustReturn {
 		return
 	}
 
-	err = p.Run()
-	if err != nil {
-		fmt.Println(PrintError(err.Error()))
-		*waitForRecompile = true
-		return
-	}
-
-	fmt.Println(PrintExitCode(p.lastExitCode))
-	if p.lastExitCode != 0 {
-		*waitForRecompile = true
-		return
-	}
-
-	fmt.Println(CyanString("\n  •  Running executable ..."))
-
-	var args []string
-	if len(os.Args) > 2 {
-		args = append(args, os.Args[2:]...)
-	}
-
-	p, err = NewProgram(dir, true, execName, args...)
-	if err != nil {
-		log.Fatalln(PrintError(err.Error()))
-	}
-
-	p.Start()
-
-	wg := new(sync.WaitGroup)
-
-	go func() {
-		scheduler.WaitForChange()
-		wg.Add(1)
-
-		err = p.Stop()
-		if err != nil {
-			log.Fatalln(PrintError(err.Error()))
-		}
-		wg.Done()
-	}()
-
-	p.Wait()
-	wg.Wait()
-	fmt.Println(PrintExitCode(p.lastExitCode))
+	s.RoutineWG.Add(1)
+	runRoutine(dir, execName, s)
+	s.RoutineWG.Done()
 }
 
-func checkRoutine(dir string, scheduler *Scheduler) {
+func checkRoutine(dir string, s *Scheduler) {
 	matches, err := WalkMatch(dir, "*.go")
 	if err != nil {
 		log.Fatalln(PrintError(err.Error()))
@@ -218,7 +171,7 @@ func checkRoutine(dir string, scheduler *Scheduler) {
 		}
 
 		if triggerRestart {
-			scheduler.TriggerChange()
+			s.TriggerChange()
 		}
 	}
 }

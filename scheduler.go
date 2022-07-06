@@ -1,42 +1,33 @@
 package main
 
 import (
+	"fmt"
+	"sync"
 	"time"
 )
 
 type Scheduler struct {
-	triggerC   chan struct{}
+	triggerChange bool
+	waiting bool
 	triggerTime time.Time
-	lastChange time.Time
-	ticker time.Ticker
-	unusedChan bool
+	lastChangeTime time.Time
+	RoutineWG *sync.WaitGroup
+	waitChangesForRecompile bool
 }
 
 func NewScheduler() *Scheduler {
-	s := &Scheduler {
-		triggerC: make(chan struct{}, 1),
-		lastChange: time.Now(),
-		ticker: *time.NewTicker(time.Millisecond * 100),
-	}
+	s := new(Scheduler)
+	s.RoutineWG = new(sync.WaitGroup)
 
-	s.triggerTime = s.lastChange
+	ticker := time.NewTicker(time.Millisecond * 100)
 
 	go func() {
-		for range s.ticker.C {
-			if s.triggerTime == s.lastChange {
+		for range ticker.C {
+			if s.triggerTime.Before(s.lastChangeTime) || s.triggerTime.Equal(s.lastChangeTime) {
 				continue
 			}
 
-			if s.triggerTime.Sub(s.lastChange) < (time.Second * 2) {
-				time.Sleep(time.Duration(2 - s.triggerTime.Sub(s.lastChange).Seconds()))
-			}
-
-			if s.unusedChan {
-				<-s.triggerC
-			}
-
-			s.triggerC <- struct{}{}
-			s.unusedChan = true
+			s.triggerChange = true
 		}
 	}()
 
@@ -47,10 +38,29 @@ func (s *Scheduler) TriggerChange() {
 	s.triggerTime = time.Now()
 }
 
-func (s *Scheduler) WaitForChange() {
-	<-s.triggerC
+func (s *Scheduler) WaitForChange(condition *bool) {
+	if s.waiting {
+		panic(fmt.Errorf("already waiting"))
+	}
+	s.waiting = true
+	defer func() {
+		s.waiting = false
+	}()
 
-	s.unusedChan = false
-	s.lastChange = time.Now()
-	s.triggerTime = s.lastChange
+	if condition != nil {
+		for !s.triggerChange && !*condition {
+			time.Sleep(time.Millisecond * 10)
+		}
+
+		if *condition {
+			return
+		}
+	} else {
+		for !s.triggerChange {
+			time.Sleep(time.Millisecond * 10)
+		}
+	}
+
+	s.lastChangeTime = time.Now()
+	s.triggerChange = false
 }

@@ -10,8 +10,9 @@ const (
 	RED_TERMINAL = "\x1b[38;5;9m"
 	GREEN_TERMINAL = "\x1b[38;5;10m"
 	YELLOW_TERMINAL = "\x1b[38;5;11m"
-	BLUE_TERMINAL = "\x1b[38;5;12m"
-	CYAN_TERMINAL = "\x1b[38;5;14m"
+	BLUE_TERMINAL = "\x1b[38;5;21m"
+	LIGHT_BLUE_TERMINAL = "\x1b[38;5;75m"
+	ORANGE_TERMINAL = "\x1b[38;5;214m"
 )
 
 func GreyString(s string) string {
@@ -34,8 +35,12 @@ func BlueString(s string) string {
 	return BLUE_TERMINAL + s + DEFAULT_TERMINAL
 }
 
-func CyanString(s string) string {
-	return CYAN_TERMINAL + s + DEFAULT_TERMINAL
+func LightBlueString(s string) string {
+	return LIGHT_BLUE_TERMINAL + s + DEFAULT_TERMINAL
+}
+
+func OrangeString(s string) string {
+	return ORANGE_TERMINAL + s + DEFAULT_TERMINAL
 }
 
 func PrintExitCode(pid int) string {
@@ -45,7 +50,7 @@ func PrintExitCode(pid int) string {
 	} else {
 		color = RED_TERMINAL
 	}
-	return fmt.Sprintf("%s  -  Exited with code %d%s", color, pid, DEFAULT_TERMINAL)
+	return fmt.Sprintf("%s  -  Exited with code %s%s%d%s", GREY_TERMINAL, DEFAULT_TERMINAL, color, pid, DEFAULT_TERMINAL)
 }
 
 func PrintError(s string) string {
