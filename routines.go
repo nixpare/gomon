@@ -5,12 +5,14 @@ import (
 	"log"
 	"os"
 	"sync"
+
+	"github.com/alessio-pareto/goutils"
 )
 
 func compileRoutine(dir, execName string, s *Scheduler) bool {
 	fmt.Println(YellowString("\n  •  Building executable ..."))
-	
-	p, err := NewProgram(dir, true, "go", "build", "-o", execName)
+
+	p, err := goutils.NewProgram(dir, true, "go", "build", "-o", execName)
 	if err != nil {
 		fmt.Println(PrintError(err.Error()))
 		s.waitChangesForRecompile = true
@@ -24,8 +26,8 @@ func compileRoutine(dir, execName string, s *Scheduler) bool {
 		return true
 	}
 
-	fmt.Println(PrintExitCode(p.lastExitCode))
-	if p.lastExitCode != 0 {
+	fmt.Println(PrintExitCode(p.LastExitCode()))
+	if p.LastExitCode() != 0 {
 		s.waitChangesForRecompile = true
 		return true
 	}
@@ -41,7 +43,7 @@ func runRoutine(dir, execName string, s *Scheduler) {
 		args = append(args, os.Args[2:]...)
 	}
 
-	p, err := NewProgram(dir, true, execName, args...)
+	p, err := goutils.NewProgram(dir, true, execName, args...)
 	if err != nil {
 		log.Fatalln(PrintError(err.Error()))
 	}
@@ -81,7 +83,7 @@ func runRoutine(dir, execName string, s *Scheduler) {
 	}()
 	
 	wg.Wait()
-	fmt.Println(PrintExitCode(p.lastExitCode))
+	fmt.Println(PrintExitCode(p.LastExitCode()))
 
 	if !exitedForChange {
 		s.waitChangesForRecompile = true
