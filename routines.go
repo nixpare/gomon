@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/alessio-pareto/goutils"
+	"github.com/nixpare/goutils"
 )
 
 func compileRoutine(dir, execName string, s *Scheduler) bool {

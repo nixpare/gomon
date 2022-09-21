@@ -1,5 +1,5 @@
-module github.com/alessio-pareto/gomon
+module github.com/nixpare/gomon
 
 go 1.18
 
-require github.com/alessio-pareto/goutils v1.1.0
+require github.com/nixpare/goutils v1.0.0
